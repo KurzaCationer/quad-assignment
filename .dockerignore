@@ -1,5 +1,11 @@
-*
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
-!target/quarkus-app/*
+.git
+.idea
+.vscode
+**/node_modules
+**/dist
+**/.quinoa
+**/.env
+**/.env.*
+**/*.local
+**/*.log
+# Keep target/quarkus-app and target/openapi in the build context.

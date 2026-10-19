@@ -3,11 +3,12 @@
 #
 # Before building the container image run:
 #
-# ./mvnw package
+# ./mvnw -B clean verify
+# Exports the API schema to target/openapi/ with Quinoa disabled.
 #
 # Then, build the image with:
 #
-# docker build -f src/main/docker/Dockerfile.jvm -t quarkus/quinoa-app-jvm .
+# docker build -f src/main/docker/Dockerfile.jvm -t kurza/quad-assignment-backend .
 #
 # Then run the container using:
 #

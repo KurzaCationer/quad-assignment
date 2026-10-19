@@ -1,0 +1,22 @@
+# Copy to infrastructure/argocd/applications/ and add to its root Kustomization.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: quad-assignment
+  namespace: argocd
+  # Omit the finalizer to keep resources when this Application is deleted.
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: quad-assignment
+  source:
+    repoURL: https://github.com/KurzaCationer/quad-assignment.git
+    targetRevision: main
+    path: deploy/overlays/production
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
