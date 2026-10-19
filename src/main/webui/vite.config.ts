@@ -7,7 +7,7 @@ import * as path from "node:path";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '',
+  base: '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -27,5 +27,8 @@ export default defineConfig({
     host: 'localhost',
     port: 7000,
     strictPort: true,
+    proxy: {
+      '/api': 'http://localhost:7001',
+    },
   },
 })
