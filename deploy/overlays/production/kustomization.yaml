@@ -6,6 +6,6 @@ resources:
 # CI updates these references together; see deploy/README.md for bootstrap.
 images:
   - name: kurza/quad-assignment-backend
-    newTag: sha-0000000000000000000000000000000000000000
+    digest: sha256:ceb24a95ba1a990941a32caaf3cac9efce4b693fb5f170f1a4c7504306455878
   - name: kurza/quad-assignment-frontend
-    newTag: sha-0000000000000000000000000000000000000000
+    digest: sha256:342280d9e9699853095b1d2a29b14412332a124cf1c41a47b4331668a2bc1c67
