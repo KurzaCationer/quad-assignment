@@ -6,12 +6,13 @@ export default defineConfig({
             target: './openapi.json',
         },
         output: {
+            clean: true,
             mode: 'tags-split',
             target: './src/generated/api.ts',
             client: 'react-query',
             baseUrl: {
-                // Pass the string expression exactly as it should look in your code
-                runtime: "process.env.VITE_API_BASE_URL || 'http://localhost:7001'",
+                // Empty origin uses the generated /api/... paths on the current host.
+                runtime: "import.meta.env.VITE_API_BASE_URL || ''",
             },
         },
     },

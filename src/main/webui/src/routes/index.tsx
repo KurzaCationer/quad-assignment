@@ -1,5 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
-import {getApiGetCategories, getApiGetQuestions, usePostApiCheckAnswers} from "@/generated";
+import {getApiGetCategories} from "@/generated/get-categories-endpoint/get-categories-endpoint";
+import {getApiGetQuestions} from "@/generated/get-questions-endpoint/get-questions-endpoint";
+import {usePostApiCheckAnswers} from "@/generated/check-answers-endpoint/check-answers-endpoint";
 import {
     Select,
     SelectContent,
