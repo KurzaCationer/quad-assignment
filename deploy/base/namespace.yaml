@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quad-assignment
+  labels:
+    infrastructure.kurza.nl/public-ingress: 'true'
+  annotations:
+    argocd.argoproj.io/sync-wave: '-2'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false

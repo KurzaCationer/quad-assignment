@@ -1,5 +1,11 @@
-*
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
-!target/quarkus-app/*
+.git
+.idea
+.vscode
+**/node_modules
+**/dist
+**/.quinoa
+**/.env
+**/.env.*
+**/*.local
+**/*.log
+# Runtime backend artifacts and target/openapi must remain in the context.

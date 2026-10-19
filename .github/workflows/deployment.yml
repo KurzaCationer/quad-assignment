@@ -1,0 +1,249 @@
+name: Build and deployment
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployment-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      application: ${{ steps.changes.outputs.application }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: changes
+        name: Detect application changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          if [[ "$EVENT" == workflow_dispatch || "$BEFORE" == 0000000000000000000000000000000000000000 ]]; then
+            echo 'application=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base="${BASE:-$BEFORE}"
+          changed=false
+          while IFS= read -r file; do
+            case "$file" in
+              src/*|pom.xml|mvnw|mvnw.cmd|.mvn/*|.dockerignore|.github/workflows/deployment.yml|scripts/*)
+                changed=true ;;
+            esac
+          done < <(git diff --name-only "$base" "$HEAD")
+          echo "application=$changed" >> "$GITHUB_OUTPUT"
+
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: v1.35.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install PyYAML==6.0.3
+      - run: python scripts/validate-deployment.py
+
+  verify:
+    needs: changes
+    if: needs.changes.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify backend and export schema without Quinoa
+        run: bash mvnw -B clean verify
+      - name: Check schema export and backend separation
+        run: |
+          test -s target/openapi/openapi.json
+          test ! -d target/quinoa/build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: target/openapi/
+          if-no-files-found: error
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: src/main/webui/.nvmrc
+          cache: npm
+          cache-dependency-path: src/main/webui/package-lock.json
+      - name: Build frontend from exported schema
+        working-directory: src/main/webui
+        run: |
+          cp ../../../target/openapi/openapi.json openapi.json
+          npm ci
+          npm run build
+      - name: Verify browser bundle
+        run: node scripts/verify-frontend.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: target/quarkus-app/
+          if-no-files-found: error
+
+  images:
+    needs: [verify, manifests]
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.backend.outputs.digest }}
+      frontend: ${{ steps.frontend.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: target/quarkus-app/
+      - uses: actions/download-artifact@v4
+        with:
+          name: openapi
+          path: target/openapi/
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend for smoke tests
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/main/docker/Dockerfile.jvm
+          platforms: linux/amd64
+          load: true
+          tags: quad-backend:smoke
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: Build frontend for smoke tests
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/main/docker/Dockerfile.frontend
+          platforms: linux/amd64
+          load: true
+          tags: quad-frontend:smoke
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+      - name: Verify runtime images, migrations and database health behavior
+        run: bash scripts/smoke-images.sh
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Publish backend for ARM64 and AMD64
+        id: backend
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/main/docker/Dockerfile.jvm
+          platforms: linux/arm64,linux/amd64
+          push: true
+          tags: kurza/quad-assignment-backend:sha-${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: Publish frontend for ARM64 and AMD64
+        id: frontend
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/main/docker/Dockerfile.frontend
+          platforms: linux/arm64,linux/amd64
+          push: true
+          tags: kurza/quad-assignment-frontend:sha-${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  deployment-pr:
+    needs: images
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      # An App token allows the generated PR to trigger validation, and keeps Dylan
+      # independent of the PR author. GITHUB_TOKEN-created PRs do not trigger CI.
+      - uses: actions/create-github-app-token@v2
+        id: bot
+        with:
+          app-id: ${{ vars.DEPLOYMENT_APP_ID }}
+          private-key: ${{ secrets.DEPLOYMENT_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.bot.outputs.token }}
+          ref: main
+          fetch-depth: 0
+      - name: Ignore a build superseded on main
+        id: current
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          # Documentation or image-only merges must not discard a valid build.
+          # A newer application change will get its own build instead.
+          if git merge-base --is-ancestor "$SOURCE_SHA" HEAD &&
+             git diff --quiet "$SOURCE_SHA" HEAD -- src pom.xml mvnw mvnw.cmd .mvn .dockerignore .github/workflows/deployment.yml scripts; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'current=false' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: azure/setup-kubectl@v4
+        if: steps.current.outputs.current == 'true'
+        with:
+          version: v1.35.0
+      - name: Update both immutable image references together
+        if: steps.current.outputs.current == 'true'
+        env:
+          BACKEND_DIGEST: ${{ needs.images.outputs.backend }}
+          FRONTEND_DIGEST: ${{ needs.images.outputs.frontend }}
+        working-directory: deploy/overlays/production
+        run: |
+          [[ "$BACKEND_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$FRONTEND_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          # kubectl embeds Kustomize but does not expose its edit command.
+          python - <<'PY'
+          import os, re
+          from pathlib import Path
+          path = Path('kustomization.yaml')
+          content = path.read_text()
+          for component in ('backend', 'frontend'):
+              pattern = rf'(  - name: kurza/quad-assignment-{component}\n)(?:    (?:newTag|digest): [^\n]+\n)+'
+              replacement = rf'\g<1>    digest: {os.environ[component.upper() + "_DIGEST"]}\n'
+              content, count = re.subn(pattern, replacement, content)
+              assert count == 1, f'Expected exactly one {component} image entry'
+          path.write_text(content)
+          PY
+          kubectl kustomize . > /dev/null
+      - name: Open or update deployment PR
+        if: steps.current.outputs.current == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.bot.outputs.token }}
+          branch: codex/deployment-images
+          base: main
+          add-paths: deploy/overlays/production/kustomization.yaml
+          commit-message: 'chore: deploy images from ${{ github.sha }}'
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          title: 'Deploy assignment images from ${{ github.sha }}'
+          body: |
+            Deploy both verified images built from source commit `${{ github.sha }}`.
+
+            - Backend: `kurza/quad-assignment-backend@${{ needs.images.outputs.backend }}`
+            - Frontend: `kurza/quad-assignment-frontend@${{ needs.images.outputs.frontend }}`
+
+            Dylan must review and merge this PR before Argo CD deploys it.
+            Image-only merges validate manifests without building images or opening another PR.

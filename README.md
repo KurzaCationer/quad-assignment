@@ -1,4 +1,11 @@
-# quinoa-app
+# Quad assignment
+
+React quiz frontend, Quarkus Java 25 API, and PostgreSQL. Production builds the
+frontend and backend separately and deploys them with Kustomize and Argo CD.
+
+See [the deployment guide](deploy/README.md) for required GitHub secrets and bot
+configuration, image publishing, infrastructure handoff, verification and rollback.
+The target is `https://quad.dylannas.nl`; `main` is the deployment branch.
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
@@ -12,7 +19,9 @@ You can run your application in dev mode that enables live coding using:
 ./mvnw quarkus:dev
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+The UI is available at <http://localhost:7000/> and through Quinoa at
+<http://localhost:7001/>. Vite proxies `/api` to Quarkus on port 7001. Quarkus's
+Dev UI is available at <http://localhost:7001/q/dev/>.
 
 ## Packaging and running the application
 
@@ -24,6 +33,10 @@ The application can be packaged using:
 
 It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
 Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+
+Production packaging disables Quinoa and exports `target/openapi/openapi.json`.
+Build the frontend separately using that schema, as described in the deployment
+guide. The Java artifact serves the API; the frontend image serves the UI at `/`.
 
 The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
 
@@ -61,7 +74,7 @@ If you want to learn more about building native executables, please consult <htt
 
 ### Quinoa
 
-Quinoa codestart added a tiny Vite app in src/main/webui. The page is configured to be visible on <a href="/quinoa">/quinoa</a>.
+Quinoa manages the Vite app in `src/main/webui` during local development at `/`.
 
 [Related guide section...](https://quarkiverse.github.io/quarkiverse-docs/quarkus-quinoa/dev/index.html)
 
