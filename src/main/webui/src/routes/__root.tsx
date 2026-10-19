@@ -8,7 +8,7 @@ const RootLayout = () => {
         <>
             <hr/>
             <Outlet/>
-            <TanStackDevtools
+            {import.meta.env.DEV && <TanStackDevtools
                 config={{
                     triggerMode: "fixed",
                     position: "bottom-left"
@@ -23,7 +23,7 @@ const RootLayout = () => {
                         render: <TanStackRouterDevtoolsPanel/>,
                     },
                 ]}
-            />
+            />}
         </>
     )
 }
