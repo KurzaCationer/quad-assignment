@@ -1,6 +1,6 @@
 package nl.dylannas.open_trivia_quinoa.models;
 
-import nl.dylannas.open_trivia_quinoa.features.check_answers.CheckAnswersItemModel;
+import nl.dylannas.open_trivia_quinoa.features.get_answers.CheckAnswersItemModel;
 import nl.dylannas.open_trivia_quinoa.features.get_questions.GetQuestionsItemModel;
 import nl.dylannas.open_trivia_quinoa.open_trivia_api_client.models.QuestionAndAnswersDTO;
 import org.mapstruct.Mapper;

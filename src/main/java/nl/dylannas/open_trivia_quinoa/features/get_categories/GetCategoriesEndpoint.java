@@ -1,6 +1,5 @@
 package nl.dylannas.open_trivia_quinoa.features.get_categories;
 
-import io.quarkus.cache.CacheResult;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -19,7 +18,6 @@ public class GetCategoriesEndpoint {
     TriviaCategoryService triviaCategoryService;
 
     @GET
-    @CacheResult(cacheName = "endpoint-categories")
     public Uni<RestResponse<GetCategoriesResponseModel>> GetCategories() {
         Uni<GetCategoriesDTO> categories = triviaCategoryService.GetCategories();
 

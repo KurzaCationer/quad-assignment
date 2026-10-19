@@ -1,4 +1,4 @@
-package nl.dylannas.open_trivia_quinoa.features.check_answers;
+package nl.dylannas.open_trivia_quinoa.features.get_answers;
 
 import java.util.UUID;
 

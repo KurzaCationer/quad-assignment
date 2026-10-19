@@ -1,8 +1,5 @@
-package nl.dylannas.open_trivia_quinoa.features.check_answers;
+package nl.dylannas.open_trivia_quinoa.features.get_answers;
 
-import io.quarkus.cache.CacheResult;
-import jakarta.inject.Inject;
-import jakarta.persistence.EntityManager;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import nl.dylannas.open_trivia_quinoa.models.QuestionAndAnswerModel;
@@ -19,7 +16,6 @@ public class CheckAnswersEndpoint {
     private static final Logger LOG = Logger.getLogger(String.valueOf(CheckAnswersEndpoint.class));
 
     @POST
-    @CacheResult(cacheName = "endpoint-answers")
     public RestResponse<CheckAnswersResponseModel> GetAnswers(CheckAnswersRequestModel request) {
         List<QuestionAndAnswerModel> questions = QuestionAndAnswerModel.findByIds(request.question_ids());
 
