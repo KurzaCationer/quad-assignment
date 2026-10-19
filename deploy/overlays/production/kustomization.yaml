@@ -6,6 +6,6 @@ resources:
 # CI replaces these tags with published image digests.
 images:
   - name: kurza/quad-assignment-backend
-    digest: sha256:c4d4ecc9c39c5572882ae2a83b62d16b7ac7f015127dfa97a14889e273be9719
+    digest: sha256:415fc385597e4baa395e359a2a79bbf02518122a98d96fcfeb760defff77ac6a
   - name: kurza/quad-assignment-frontend
-    digest: sha256:c2ca8b95c08941fd98f1699530d389572616101cd0c9353948c240b7a223a28b
+    digest: sha256:72072600d746f3987af104f9a83dea3affc52e3603086a986e02d0bc8491e4ee
