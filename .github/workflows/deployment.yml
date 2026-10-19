@@ -13,14 +13,13 @@ on:
       - 'deploy/**'
       - '**/*.md'
       - '.github/workflows/manifests.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: deployment-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -75,7 +74,7 @@ jobs:
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -87,7 +86,7 @@ jobs:
           context: .
           file: src/main/docker/Dockerfile.jvm
           platforms: linux/arm64,linux/amd64
-          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: kurza/quad-assignment-backend:sha-${{ github.sha }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
@@ -98,17 +97,17 @@ jobs:
           context: .
           file: src/main/docker/Dockerfile.frontend
           platforms: linux/arm64,linux/amd64
-          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: kurza/quad-assignment-frontend:sha-${{ github.sha }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
-  deployment-pr:
+  deploy:
     needs: images
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      # Use an App token so deployment PRs trigger CI.
+      # After merge, commit image digests for Argo CD.
       - uses: actions/create-github-app-token@v2
         id: bot
         with:
@@ -138,21 +137,15 @@ jobs:
               assert count == 1, f'Expected exactly one {component} image entry'
           path.write_text(content)
           PY
-      - name: Open or update deployment PR
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ steps.bot.outputs.token }}
-          branch: pr/deployment-images
-          base: main
-          add-paths: deploy/overlays/production/kustomization.yaml
-          commit-message: 'chore: deploy images from ${{ github.sha }}'
-          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          title: 'Deploy assignment images from ${{ github.sha }}'
-          body: |
-            Deploy images built from `${{ github.sha }}`.
-
-            - Backend: `kurza/quad-assignment-backend@${{ needs.images.outputs.backend }}`
-            - Frontend: `kurza/quad-assignment-frontend@${{ needs.images.outputs.frontend }}`
-
-            Review and merge this PR to deploy with Argo CD.
-            Image-only merges run manifest validation only.
+      - name: Commit image references for Argo CD
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deploy/overlays/production/kustomization.yaml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(deploy): update images from $SOURCE_SHA"
+          git push origin HEAD:main
