@@ -124,24 +124,25 @@ function Index() {
     };
 
     return (
-        <div className="max-w-300 mx-auto">
-            <div className={"flex mt-4 gap-2 items-center"}>
+        <div className="max-w-300 mx-auto px-4 py-4 sm:px-6">
+            <div className={"flex flex-wrap gap-2 items-center"}>
                 <h1 className={"font-heading text-3xl font-semibold"}>Questions</h1>
-                <div className={"flex gap-2 items-center"}>
+                <div className={"flex w-full min-w-0 flex-wrap gap-2 items-center sm:w-auto"}>
                     <Button className={"px-6 py-4 w-20"} onClick={toggleShouldFetch}>
                         {shouldFetchDisplay ? "Stop" : "Start"}
                     </Button>
                     <Select value={categoryDisplay} onValueChange={setCategory}
                             items={categorySelectItems}>
-                        <SelectTrigger className={"w-65 h-8"}>
-                            <SelectValue/>
+                        <SelectTrigger className={"min-w-0 flex-1 h-8 sm:w-65 sm:flex-none"}>
+                            <SelectValue className="min-w-0 truncate"/>
                         </SelectTrigger>
                         <SelectContent>
                             <SelectGroup>
                                 <SelectLabel>Categories</SelectLabel>
                                 {categorySelectItems.map(item =>
                                     (
-                                        <SelectItem key={item.value} value={item.value}>
+                                        <SelectItem key={item.value} value={item.value}
+                                                    className="[&>*]:min-w-0 [&>*]:shrink [&>*]:whitespace-normal [&>*]:wrap-anywhere">
                                             {item.label}
                                         </SelectItem>
                                     ))
@@ -149,14 +150,14 @@ function Index() {
                             </SelectGroup>
                         </SelectContent>
                     </Select>
-                    {category !== categoryDisplay || shouldFetch !== shouldFetchDisplay && <Spinner/>}
+                    {category !== categoryDisplay || shouldFetch !== shouldFetchDisplay && <Spinner className="shrink-0"/>}
                 </div>
             </div>
             <div className={"flex flex-col mt-4 gap-3"}>
                 {questions?.map(q => (
                     <div className={"flex flex-col gap-2"} key={q.id}>
                         <div dangerouslySetInnerHTML={{__html: q.question ?? ""}}
-                             className={"bg-primary/10 p-2 rounded-sm"}/>
+                             className={"bg-primary/10 p-2 rounded-sm wrap-anywhere"}/>
                         <div className={"flex flex-wrap gap-2"}>
                             {q.possible_answers?.map((answer, index) => {
                                 const givenAnswer = givenAnswers[q.id!] === answer;
@@ -175,7 +176,7 @@ function Index() {
                                                 }));
                                             }}
                                             disabled={correctAnswers[q.id!] !== undefined}
-                                            className={"py-4 text-center"}
+                                            className={"h-auto min-h-8 max-w-full whitespace-normal wrap-anywhere py-4 text-center"}
                                             dangerouslySetInnerHTML={{__html: answer ?? ""}}/>
                                 );
                             })}
