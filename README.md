@@ -1,80 +1,27 @@
 # Quad assignment
 
-React quiz frontend, Quarkus Java 25 API, and PostgreSQL. Production builds the
-frontend and backend separately and deploys them with Kustomize and Argo CD.
+## Introduction
 
-Production manifests are in `deploy/overlays/production` and the build/publish
-workflow is in `.github/workflows/deployment.yml`.
-The target is `https://quad.dylannas.nl`; `main` is the deployment branch.
+I built this simple trivia application with a Quarkus backend and a React frontend powered by Vite, using the Open
+Trivia Database API to retrieve questions. You can try the application at [quad.dylannas.nl](https://quad.dylannas.nl/).
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+## Running locally
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
-
-## Running the application in dev mode
-
-You can run your application in dev mode that enables live coding using:
+Start the application in development mode with:
 
 ```shell script
 ./mvnw quarkus:dev
 ```
 
-The UI is available at <http://localhost:7000/> and through Quinoa at
-<http://localhost:7001/>. Vite proxies `/api` to Quarkus on port 7001. Quarkus's
-Dev UI is available at <http://localhost:7001/q/dev/>.
+Once the application is running, you can access the UI directly through Vite at
+<http://localhost:7000/> or through Quinoa at <http://localhost:7001/>. During
+development, Vite forwards `/api` requests to Quarkus on port 7001, where you can
+also access the Quarkus Dev UI at <http://localhost:7001/q/dev/>.
 
-## Packaging and running the application
+## Deployment
 
-The application can be packaged using:
+The application runs on my personal infrastructure, with Argo CD handling deployment after the repository's CI/CD
+pipeline builds the container images.
 
-```shell script
-./mvnw package
-```
-
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
-
-Production packaging disables Quinoa and exports `target/openapi/openapi.json`.
-Build the frontend separately using that schema. The Java artifact serves the API;
-the frontend image serves the UI at `/`.
-
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-```
-
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/quinoa-app-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Related Guides
-
-- Quinoa ([guide](https://quarkiverse.github.io/quarkiverse-docs/quarkus-quinoa/dev/index.html)): Develop, build, and serve your npm-compatible web applications such as React, Angular, Vue, Lit, Svelte, Astro, SolidJS, and others alongside Quarkus.
-
-## Provided Code
-
-### Quinoa
-
-Quinoa manages the Vite app in `src/main/webui` during local development at `/`.
-
-[Related guide section...](https://quarkiverse.github.io/quarkiverse-docs/quarkus-quinoa/dev/index.html)
-
+The personal infrastructure is fully declaratively defined in its
+own [GitHub Repository](https://github.com/KurzaCationer/infrastructure)
