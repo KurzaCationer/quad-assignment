@@ -7,7 +7,9 @@ metadata:
     infrastructure.kurza.nl/public-dns: 'true'
 spec:
   parentRefs:
-    - name: public
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: public
       namespace: public-ingress
       sectionName: dylannas-nl-https
   hostnames:
@@ -18,12 +20,18 @@ spec:
             type: PathPrefix
             value: /api
       backendRefs:
-        - name: quad-assignment-backend
+        - group: ''
+          kind: Service
+          name: quad-assignment-backend
           port: 80
+          weight: 1
     - matches:
         - path:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: quad-assignment-frontend
+        - group: ''
+          kind: Service
+          name: quad-assignment-frontend
           port: 80
+          weight: 1
