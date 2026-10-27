@@ -6,6 +6,6 @@ resources:
 # These tags get updated with every deployment.
 images:
   - name: kurza/quad-assignment-backend
-    digest: sha256:c2ce6df03617cafa62f75f9569e76c7a45dcd24bf0cdc5f57f0e6bbf4e8342e4
+    digest: sha256:3026a5397f31a5d93753639cfef6232a07c554e948f830ae109c02e15e9a5dac
   - name: kurza/quad-assignment-frontend
-    digest: sha256:095e22dd4d77cb39fbebe0189d1749d0f2c4ff612f9d1abb0d9f95116d0d9f92
+    digest: sha256:2640ab5a180d8b50acfd5d23d7359c3fff009ddd3aa47762189bbdb9a9cb7652
