@@ -14,7 +14,6 @@ spec:
       owner: quad_assignment
   storage:
     size: 1Gi
-    # Check that the default storage class can provision volumes before deploying.
   resources:
     requests:
       cpu: 100m

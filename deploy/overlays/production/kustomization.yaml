@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../../base
   - httproute.yaml
-# CI replaces these tags with published image digests.
+# These tags get updated with every deployment.
 images:
   - name: kurza/quad-assignment-backend
     digest: sha256:415fc385597e4baa395e359a2a79bbf02518122a98d96fcfeb760defff77ac6a
