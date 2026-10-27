@@ -1,4 +1,4 @@
-import {createRootRoute, Outlet} from '@tanstack/react-router'
+import {createRootRoute, HeadContent, Outlet} from '@tanstack/react-router'
 import {TanStackDevtools} from "@tanstack/react-devtools";
 import {ReactQueryDevtoolsPanel} from "@tanstack/react-query-devtools";
 import {TanStackRouterDevtoolsPanel} from "@tanstack/react-router-devtools";
@@ -6,6 +6,7 @@ import {TanStackRouterDevtoolsPanel} from "@tanstack/react-router-devtools";
 const RootLayout = () => {
     return (
         <>
+            <HeadContent assetCrossOrigin="anonymous" />
             <hr/>
             <Outlet/>
             {import.meta.env.DEV && <TanStackDevtools
@@ -28,4 +29,17 @@ const RootLayout = () => {
     )
 }
 
-export const Route = createRootRoute({component: RootLayout})
+export const Route = createRootRoute({
+    head: () => ({
+        meta: [
+            {
+                name: 'description',
+                content: 'OpenTDB trivia questions',
+            },
+            {
+                title: 'OpenTDB UI',
+            },
+        ],
+    }),
+    component: RootLayout
+})
