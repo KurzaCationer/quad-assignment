@@ -1,4 +1,5 @@
-import {createFileRoute} from '@tanstack/react-router'
+import {createFileRoute, useRouter, useRouterState} from '@tanstack/react-router'
+import {errorMessage, requireSuccess} from '@/lib/apiErrors';
 import {getApiGetCategories} from "@/generated/get-categories-endpoint/get-categories-endpoint";
 import {getApiGetQuestions} from "@/generated/get-questions-endpoint/get-questions-endpoint";
 import {zodValidator} from '@tanstack/zod-adapter'
@@ -7,6 +8,8 @@ import {QuestionDifficulty, QuestionType} from "@/generated/api.schemas.ts";
 import {useQuizFilters} from "@/hooks/useQuizFilters.ts";
 import {useQuizAnswers} from "@/hooks/useQuizAnswers.ts";
 import {Button} from "@/components/ui/button.tsx";
+import {Alert, AlertAction, AlertDescription, AlertTitle} from "@/components/ui/alert.tsx";
+import {CircleAlertIcon} from "lucide-react";
 import {Spinner} from "@/components/ui/spinner.tsx";
 import QuizScore from "@/components/QuizScore.tsx";
 import CustomSelect from "@/components/CustomSelect.tsx";
@@ -24,20 +27,40 @@ export const Route = createFileRoute('/')({
     validateSearch: zodValidator(questionsPageStateSchema),
     staleTime: Infinity,
     loaderDeps: ({search}) => ({...search}),
-    loader: async (ctx) => ({
-        categories: await getApiGetCategories().then(x => x.data.categories),
-        questions: ctx.deps.shouldFetch ? await getApiGetQuestions({
-            categoryId: ctx.deps.category,
-            difficulty: ctx.deps.difficulty,
-            type: ctx.deps.type,
-            amount: 7
-        }).then(x => x.data.questions) : [],
-        fetchedAt: Date.now(),
-    })
+    loader: async (ctx) => {
+        const [categoriesResult, questionsResult] = await Promise.allSettled([
+            getApiGetCategories().then(response => {
+                const data = requireSuccess(response);
+                if (!Array.isArray(data.categories)) throw new Error('Invalid categories response');
+                return data.categories;
+            }),
+            ctx.deps.shouldFetch ? getApiGetQuestions({
+                categoryId: ctx.deps.category,
+                difficulty: ctx.deps.difficulty,
+                type: ctx.deps.type,
+                amount: 7
+            }).then(response => {
+                const data = requireSuccess(response);
+                if (!Array.isArray(data.questions)) throw new Error('Invalid questions response');
+                return data.questions;
+            }) : Promise.resolve([]),
+        ]);
+        return {
+            categories: categoriesResult.status === 'fulfilled' ? categoriesResult.value : [],
+            questions: questionsResult.status === 'fulfilled' ? questionsResult.value : [],
+            categoriesError: categoriesResult.status === 'rejected'
+                ? errorMessage(categoriesResult.reason, 'Unable to load categories. Please try again.') : null,
+            questionsError: questionsResult.status === 'rejected'
+                ? errorMessage(questionsResult.reason, 'Unable to load questions. Please try again.') : null,
+            fetchedAt: Date.now(),
+        };
+    }
 })
 
 function Index() {
-    const {categories, questions, fetchedAt} = Route.useLoaderData();
+    const {categories, questions, fetchedAt, categoriesError, questionsError} = Route.useLoaderData();
+    const router = useRouter();
+    const isLoading = useRouterState({select: state => state.isLoading});
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
     const answers = useQuizAnswers({questions, fetchedAt});
@@ -91,6 +114,22 @@ function Index() {
                     {filters.isChanging && <Spinner className="shrink-0"/>}
                 </div>
             </div>
+            {(categoriesError || questionsError) && (
+                <Alert variant="destructive" className="mt-4">
+                    <CircleAlertIcon/>
+                    <AlertTitle>Unable to load quiz data</AlertTitle>
+                    <AlertDescription>
+                        {categoriesError && <p>{categoriesError}</p>}
+                        {questionsError && <p>{questionsError}</p>}
+                        <Button className={"w-fit"} variant="outline" disabled={isLoading}
+                                onClick={() => void router.invalidate()}>
+                            {isLoading ? 'Retrying…' : 'Retry'}
+                        </Button>
+                    </AlertDescription>
+                    <AlertAction>
+                    </AlertAction>
+                </Alert>
+            )}
             <div className={"flex flex-col mt-4 gap-3"}>
                 {questions?.map(q => (
                     <Question
@@ -113,6 +152,16 @@ function Index() {
                 </Button>
             }
 
+            {answers.error && (
+                <Alert variant="destructive" className="mt-3">
+                    <CircleAlertIcon/>
+                    <AlertTitle>Unable to submit answers</AlertTitle>
+                    <AlertDescription>
+                        <p>{answers.error}</p>
+                        <p>Your selections are saved. Submit again to retry.</p>
+                    </AlertDescription>
+                </Alert>
+            )}
             {answers.score !== null && (
                 <QuizScore score={answers.score} totals={answers.totals}/>
             )}

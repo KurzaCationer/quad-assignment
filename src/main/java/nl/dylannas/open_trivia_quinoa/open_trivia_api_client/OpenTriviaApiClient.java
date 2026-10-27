@@ -8,6 +8,7 @@ import io.smallrye.mutiny.unchecked.Unchecked;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import nl.dylannas.open_trivia_quinoa.ApiException;
 import nl.dylannas.open_trivia_quinoa.open_trivia_api_client.models.*;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -108,12 +109,16 @@ public class OpenTriviaApiClient {
                                 throw new IllegalStateException("OpenTDB returned an empty questions response");
                             }
                             if (body.response_code != 0) {
-                                throw new IllegalStateException("OpenTDB returned response code " + body.response_code);
+                                throw switch (body.response_code) {
+                                    case 1 -> new ApiException(422, "Not enough questions match these filters. Try another category, difficulty or type.");
+                                    case 5 -> new ApiException(503, "The trivia service is busy. Please wait a few seconds and try again.");
+                                    default -> new ApiException(502, "The trivia service could not load questions. Please try again.");
+                                };
                             }
                             if (body.results == null) {
                                 throw new IllegalStateException("OpenTDB returned no questions list");
                             }
-                        })))).copy());
+                        })))).copy()).onFailure().transform(OpenTriviaApiClient::upstreamFailure);
     }
 
     public Uni<RestResponse<GetCategoriesDTO>> getCategories() {
@@ -126,7 +131,16 @@ public class OpenTriviaApiClient {
                                     if (response.getEntity() == null || response.getEntity().trivia_categories == null) {
                                         throw new IllegalStateException("OpenTDB returned no categories list");
                                     }
-                                })))).copy());
+                                })))).copy()).onFailure().transform(OpenTriviaApiClient::upstreamFailure);
+    }
+
+    private static Throwable upstreamFailure(Throwable failure) {
+        while ((failure instanceof java.util.concurrent.CompletionException
+                || failure instanceof java.util.concurrent.ExecutionException) && failure.getCause() != null) {
+            failure = failure.getCause();
+        }
+        return failure instanceof ApiException ? failure
+                : new ApiException(502, "Unable to reach the trivia service. Please try again.", failure);
     }
 
     private synchronized <T> CompletableFuture<RestResponse<T>> rateLimitedCall(Supplier<Uni<RestResponse<T>>> request) {
